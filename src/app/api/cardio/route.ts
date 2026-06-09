@@ -42,7 +42,7 @@ export async function POST(req: NextRequest) {
 
     const row = await db.execute({
       sql: 'SELECT * FROM cardio WHERE id = ?',
-      args: [result.lastInsertRowid],
+      args: [Number(result.lastInsertRowid)],
     });
     return NextResponse.json(row.rows[0], { status: 201 });
   } catch (e) {
