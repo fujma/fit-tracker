@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Dumbbell, Wind, Upload, TrendingUp, Menu, X } from "lucide-react";
+import { LayoutDashboard, Dumbbell, Wind, Upload, TrendingUp, Menu, X, CalendarDays } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 
@@ -9,6 +9,7 @@ const navItems = [
   { href: "/", label: "ダッシュボード", icon: LayoutDashboard },
   { href: "/workouts", label: "筋トレ記録", icon: Dumbbell },
   { href: "/cardio", label: "有酸素運動", icon: Wind },
+  { href: "/daily", label: "日々の記録（歩数・睡眠）", icon: CalendarDays },
   { href: "/progress", label: "進捗グラフ", icon: TrendingUp },
   { href: "/import", label: "CSVインポート", icon: Upload },
 ];
