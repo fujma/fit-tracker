@@ -172,7 +172,7 @@ export default function WorkoutsPage() {
       }),
     });
     if (res.ok) {
-      setSavedIds((prev) => new Set([...prev, idx]));
+      setSavedIds((prev) => { const next = new Set(Array.from(prev)); next.add(idx); return next; });
       setMsg(`「${entry.exercise_name}」を記録しました！`);
       load();
       setTimeout(() => setMsg(""), 3000);
