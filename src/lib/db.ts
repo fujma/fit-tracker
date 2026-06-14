@@ -34,6 +34,8 @@ export async function initSchema() {
       duration_min REAL,
       distance_km REAL,
       calories REAL,
+      speed_kmh REAL,
+      incline_pct REAL,
       notes TEXT,
       created_at TEXT DEFAULT (datetime('now'))
     );
