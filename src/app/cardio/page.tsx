@@ -23,27 +23,20 @@ interface Cardio {
 }
 
 const CARDIO_TYPES = ["ランニング", "ウォーキング", "自転車", "水泳", "エリプティカル", "縄跳び", "その他"];
-
-// 体重（カロリー計算用デフォルト70kg）
-const DEFAULT_WEIGHT_KG = 70;
+const WEIGHT_KEY = "fittracker_user_weight";
 
 function calcDistanceAndCalories(
   duration_min: number,
   speed_kmh: number,
-  incline_pct: number
+  incline_pct: number,
+  weight_kg: number
 ): { distance_km: number; calories: number } {
-  // 距離 = スピード(km/h) × 時間(h)
   const distance_km = parseFloat((speed_kmh * (duration_min / 60)).toFixed(2));
-
-  // カロリー計算（トレッドミル公式 ACSM）
-  // VO2 (ml/kg/min) = 0.1×speed(m/min) + 1.8×speed(m/min)×grade + 3.5
   const speed_m_min = speed_kmh * 1000 / 60;
   const grade = incline_pct / 100;
   const vo2 = 0.1 * speed_m_min + 1.8 * speed_m_min * grade + 3.5;
-  // カロリー/min = VO2 × 体重 × 5 / 1000
-  const cal_per_min = vo2 * DEFAULT_WEIGHT_KG * 5 / 1000;
+  const cal_per_min = vo2 * weight_kg * 5 / 1000;
   const calories = Math.round(cal_per_min * duration_min);
-
   return { distance_km, calories };
 }
 
@@ -53,6 +46,7 @@ export default function CardioPage() {
   const [showForm, setShowForm] = useState(false);
   const [msg, setMsg] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [userWeight, setUserWeight] = useState("70");
 
   const today = format(new Date(), "yyyy-MM-dd");
   const [form, setForm] = useState({
@@ -66,13 +60,35 @@ export default function CardioPage() {
     notes: "",
   });
 
+  // 体重をlocalStorageから読み込む
+  useEffect(() => {
+    const saved = localStorage.getItem(WEIGHT_KEY);
+    if (saved) setUserWeight(saved);
+  }, []);
+
+  function saveWeight(v: string) {
+    setUserWeight(v);
+    localStorage.setItem(WEIGHT_KEY, v);
+    // 体重変更時も再計算
+    const updated = { ...form };
+    const dur = parseFloat(updated.duration_min);
+    const spd = parseFloat(updated.speed_kmh);
+    const inc = parseFloat(updated.incline_pct) || 0;
+    const w = parseFloat(v) || 70;
+    if (dur > 0 && spd > 0) {
+      const { distance_km, calories } = calcDistanceAndCalories(dur, spd, inc, w);
+      setForm({ ...updated, distance_km: String(distance_km), calories: String(calories) });
+    }
+  }
+
   // スピード・角度・時間が入力されたら自動計算
   function autoCalc(updated: typeof form) {
     const dur = parseFloat(updated.duration_min);
     const spd = parseFloat(updated.speed_kmh);
     const inc = parseFloat(updated.incline_pct) || 0;
+    const w = parseFloat(userWeight) || 70;
     if (dur > 0 && spd > 0) {
-      const { distance_km, calories } = calcDistanceAndCalories(dur, spd, inc);
+      const { distance_km, calories } = calcDistanceAndCalories(dur, spd, inc, w);
       return { ...updated, distance_km: String(distance_km), calories: String(calories) };
     }
     return updated;
@@ -169,12 +185,12 @@ export default function CardioPage() {
                 </div>
               </div>
 
-              {/* スピード・角度 */}
+              {/* スピード・角度・体重 */}
               <div className="rounded-lg border border-primary/30 bg-primary/5 p-4 space-y-3">
                 <p className="text-xs text-primary font-medium flex items-center gap-1">
-                  <Zap className="w-3 h-3" /> スピード・角度を入力すると距離とカロリーが自動計算されます
+                  <Zap className="w-3 h-3" /> スピード・角度・体重を入力すると距離とカロリーが自動計算されます
                 </p>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-3 gap-4">
                   <div className="space-y-1">
                     <Label>スピード (km/h)</Label>
                     <Input
@@ -193,6 +209,16 @@ export default function CardioPage() {
                       value={form.incline_pct}
                       onChange={(e) => setField("incline_pct", e.target.value)}
                       placeholder="例: 1.0"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label>体重 (kg) <span className="text-xs text-muted-foreground">※記憶されます</span></Label>
+                    <Input
+                      type="number"
+                      step="0.1"
+                      value={userWeight}
+                      onChange={(e) => saveWeight(e.target.value)}
+                      placeholder="例: 70"
                     />
                   </div>
                 </div>
