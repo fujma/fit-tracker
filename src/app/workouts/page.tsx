@@ -8,7 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { WorkoutChart } from "@/components/charts/WorkoutChart";
 import { format } from "date-fns";
-import { Plus, Trash2, Save, ChevronDown, ChevronUp, Dumbbell, Settings } from "lucide-react";
+import { Plus, Trash2, Save, ChevronDown, ChevronUp, Dumbbell, Pencil, X, Check } from "lucide-react";
 
 interface Workout {
   id: number;
@@ -122,6 +122,8 @@ export default function WorkoutsPage() {
   const [chartExercise, setChartExercise] = useState("");
   const [exerciseNames, setExerciseNames] = useState<string[]>([]);
   const [chartData, setChartData] = useState<{ date: string; max_weight: number | null }[]>([]);
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editForm, setEditForm] = useState<Partial<Workout>>({});
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -178,6 +180,27 @@ export default function WorkoutsPage() {
       setTimeout(() => setMsg(""), 3000);
     }
     setSubmitting(null);
+  }
+
+  async function deleteWorkout(id: number) {
+    if (!confirm("この記録を削除しますか？")) return;
+    await fetch(`/api/workouts/${id}`, { method: "DELETE" });
+    load();
+  }
+
+  async function updateWorkout(id: number) {
+    await fetch(`/api/workouts/${id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        ...editForm,
+        weight_kg: editForm.weight_kg ? Number(editForm.weight_kg) : null,
+        sets: editForm.sets ? Number(editForm.sets) : null,
+        reps: editForm.reps ? Number(editForm.reps) : null,
+      }),
+    });
+    setEditingId(null);
+    load();
   }
 
   async function saveAll() {
@@ -324,21 +347,42 @@ export default function WorkoutsPage() {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b text-muted-foreground">
-                      <th className="text-left py-2 pr-4">日付</th>
-                      <th className="text-left py-2 pr-4">種目</th>
-                      <th className="text-right py-2 pr-4">重量</th>
-                      <th className="text-right py-2 pr-4">セット</th>
-                      <th className="text-right py-2">回数</th>
+                      <th className="text-left py-2 pr-3">日付</th>
+                      <th className="text-left py-2 pr-3">種目</th>
+                      <th className="text-right py-2 pr-3">重量</th>
+                      <th className="text-right py-2 pr-3">セット</th>
+                      <th className="text-right py-2 pr-3">回数</th>
+                      <th className="py-2 w-16"></th>
                     </tr>
                   </thead>
                   <tbody>
-                    {workouts.map((w) => (
+                    {workouts.map((w) => editingId === w.id ? (
+                      <tr key={w.id} className="border-b border-primary/30 bg-primary/5">
+                        <td className="py-1 pr-2"><input type="date" value={editForm.date ?? ""} onChange={e => setEditForm(f => ({...f, date: e.target.value}))} className="w-32 rounded border border-border bg-background px-1 py-0.5 text-xs" /></td>
+                        <td className="py-1 pr-2"><input type="text" value={editForm.exercise_name ?? ""} onChange={e => setEditForm(f => ({...f, exercise_name: e.target.value}))} className="w-28 rounded border border-border bg-background px-1 py-0.5 text-xs" /></td>
+                        <td className="py-1 pr-2 text-right"><input type="number" step="0.5" value={editForm.weight_kg ?? ""} onChange={e => setEditForm(f => ({...f, weight_kg: e.target.value as unknown as number}))} className="w-16 rounded border border-border bg-background px-1 py-0.5 text-xs text-right" /></td>
+                        <td className="py-1 pr-2 text-right"><input type="number" value={editForm.sets ?? ""} onChange={e => setEditForm(f => ({...f, sets: e.target.value as unknown as number}))} className="w-12 rounded border border-border bg-background px-1 py-0.5 text-xs text-right" /></td>
+                        <td className="py-1 pr-2 text-right"><input type="number" value={editForm.reps ?? ""} onChange={e => setEditForm(f => ({...f, reps: e.target.value as unknown as number}))} className="w-12 rounded border border-border bg-background px-1 py-0.5 text-xs text-right" /></td>
+                        <td className="py-1">
+                          <div className="flex gap-1 justify-end">
+                            <button onClick={() => updateWorkout(w.id)} className="p-1 text-green-400 hover:text-green-300"><Check className="w-3.5 h-3.5" /></button>
+                            <button onClick={() => setEditingId(null)} className="p-1 text-muted-foreground hover:text-foreground"><X className="w-3.5 h-3.5" /></button>
+                          </div>
+                        </td>
+                      </tr>
+                    ) : (
                       <tr key={w.id} className="border-b border-border/50 hover:bg-accent/50">
-                        <td className="py-2 pr-4 whitespace-nowrap text-muted-foreground">{w.date}</td>
-                        <td className="py-2 pr-4 font-medium">{w.exercise_name}</td>
-                        <td className="py-2 pr-4 text-right font-bold text-primary">{w.weight_kg != null ? `${w.weight_kg}kg` : "-"}</td>
-                        <td className="py-2 pr-4 text-right">{w.sets ?? "-"}</td>
-                        <td className="py-2 text-right">{w.reps ?? "-"}</td>
+                        <td className="py-2 pr-3 whitespace-nowrap text-muted-foreground text-xs">{w.date}</td>
+                        <td className="py-2 pr-3 font-medium">{w.exercise_name}</td>
+                        <td className="py-2 pr-3 text-right font-bold text-primary">{w.weight_kg != null ? `${w.weight_kg}kg` : "-"}</td>
+                        <td className="py-2 pr-3 text-right">{w.sets ?? "-"}</td>
+                        <td className="py-2 pr-3 text-right">{w.reps ?? "-"}</td>
+                        <td className="py-2">
+                          <div className="flex gap-1 justify-end">
+                            <button onClick={() => { setEditingId(w.id); setEditForm({...w}); }} className="p-1 text-muted-foreground hover:text-primary"><Pencil className="w-3.5 h-3.5" /></button>
+                            <button onClick={() => deleteWorkout(w.id)} className="p-1 text-muted-foreground hover:text-destructive"><Trash2 className="w-3.5 h-3.5" /></button>
+                          </div>
+                        </td>
                       </tr>
                     ))}
                   </tbody>

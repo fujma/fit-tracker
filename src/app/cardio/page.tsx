@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { format } from "date-fns";
-import { Plus, Zap } from "lucide-react";
+import { Plus, Zap, Pencil, Trash2, X, Check } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 
 interface Cardio {
@@ -47,6 +47,8 @@ export default function CardioPage() {
   const [msg, setMsg] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [userWeight, setUserWeight] = useState("70");
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editForm, setEditForm] = useState<Partial<Cardio>>({});
 
   const today = format(new Date(), "yyyy-MM-dd");
   const [form, setForm] = useState({
@@ -141,6 +143,29 @@ export default function CardioPage() {
       setMsg(err.error ?? "エラーが発生しました");
     }
     setSubmitting(false);
+  }
+
+  async function deleteCardio(id: number) {
+    if (!confirm("この記録を削除しますか？")) return;
+    await fetch(`/api/cardio/${id}`, { method: "DELETE" });
+    load();
+  }
+
+  async function updateCardio(id: number) {
+    await fetch(`/api/cardio/${id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        ...editForm,
+        duration_min: editForm.duration_min ? Number(editForm.duration_min) : null,
+        distance_km: editForm.distance_km ? Number(editForm.distance_km) : null,
+        calories: editForm.calories ? Number(editForm.calories) : null,
+        speed_kmh: editForm.speed_kmh ? Number(editForm.speed_kmh) : null,
+        incline_pct: editForm.incline_pct ? Number(editForm.incline_pct) : null,
+      }),
+    });
+    setEditingId(null);
+    load();
   }
 
   const chartData = records
@@ -307,20 +332,41 @@ export default function CardioPage() {
                     <th className="text-right py-2 pr-3">角度</th>
                     <th className="text-right py-2 pr-3">距離</th>
                     <th className="text-right py-2 pr-3">カロリー</th>
-                    <th className="text-left py-2">メモ</th>
+                    <th className="py-2 w-16"></th>
                   </tr>
                 </thead>
                 <tbody>
-                  {records.map((r) => (
+                  {records.map((r) => editingId === r.id ? (
+                    <tr key={r.id} className="border-b border-primary/30 bg-primary/5">
+                      <td className="py-1 pr-2"><input type="date" value={editForm.date ?? ""} onChange={e => setEditForm(f => ({...f, date: e.target.value}))} className="w-28 rounded border border-border bg-background px-1 py-0.5 text-xs" /></td>
+                      <td className="py-1 pr-2"><input type="text" value={editForm.type ?? ""} onChange={e => setEditForm(f => ({...f, type: e.target.value}))} className="w-24 rounded border border-border bg-background px-1 py-0.5 text-xs" /></td>
+                      <td className="py-1 pr-2 text-right"><input type="number" value={editForm.duration_min ?? ""} onChange={e => setEditForm(f => ({...f, duration_min: e.target.value as unknown as number}))} className="w-14 rounded border border-border bg-background px-1 py-0.5 text-xs text-right" /></td>
+                      <td className="py-1 pr-2 text-right"><input type="number" step="0.1" value={editForm.speed_kmh ?? ""} onChange={e => setEditForm(f => ({...f, speed_kmh: e.target.value as unknown as number}))} className="w-14 rounded border border-border bg-background px-1 py-0.5 text-xs text-right" /></td>
+                      <td className="py-1 pr-2 text-right"><input type="number" step="0.5" value={editForm.incline_pct ?? ""} onChange={e => setEditForm(f => ({...f, incline_pct: e.target.value as unknown as number}))} className="w-12 rounded border border-border bg-background px-1 py-0.5 text-xs text-right" /></td>
+                      <td className="py-1 pr-2 text-right"><input type="number" step="0.01" value={editForm.distance_km ?? ""} onChange={e => setEditForm(f => ({...f, distance_km: e.target.value as unknown as number}))} className="w-14 rounded border border-border bg-background px-1 py-0.5 text-xs text-right" /></td>
+                      <td className="py-1 pr-2 text-right"><input type="number" value={editForm.calories ?? ""} onChange={e => setEditForm(f => ({...f, calories: e.target.value as unknown as number}))} className="w-14 rounded border border-border bg-background px-1 py-0.5 text-xs text-right" /></td>
+                      <td className="py-1">
+                        <div className="flex gap-1 justify-end">
+                          <button onClick={() => updateCardio(r.id)} className="p-1 text-green-400 hover:text-green-300"><Check className="w-3.5 h-3.5" /></button>
+                          <button onClick={() => setEditingId(null)} className="p-1 text-muted-foreground hover:text-foreground"><X className="w-3.5 h-3.5" /></button>
+                        </div>
+                      </td>
+                    </tr>
+                  ) : (
                     <tr key={r.id} className="border-b border-border/50 hover:bg-accent/50">
-                      <td className="py-2 pr-3 whitespace-nowrap">{r.date}</td>
+                      <td className="py-2 pr-3 whitespace-nowrap text-xs text-muted-foreground">{r.date}</td>
                       <td className="py-2 pr-3 font-medium">{r.type}</td>
                       <td className="py-2 pr-3 text-right">{r.duration_min != null ? `${r.duration_min}分` : "-"}</td>
                       <td className="py-2 pr-3 text-right">{r.speed_kmh != null ? `${r.speed_kmh}km/h` : "-"}</td>
                       <td className="py-2 pr-3 text-right">{r.incline_pct != null ? `${r.incline_pct}%` : "-"}</td>
                       <td className="py-2 pr-3 text-right">{r.distance_km != null ? `${r.distance_km}km` : "-"}</td>
                       <td className="py-2 pr-3 text-right">{r.calories != null ? `${r.calories}kcal` : "-"}</td>
-                      <td className="py-2 text-muted-foreground">{r.notes ?? ""}</td>
+                      <td className="py-2">
+                        <div className="flex gap-1 justify-end">
+                          <button onClick={() => { setEditingId(r.id); setEditForm({...r}); }} className="p-1 text-muted-foreground hover:text-primary"><Pencil className="w-3.5 h-3.5" /></button>
+                          <button onClick={() => deleteCardio(r.id)} className="p-1 text-muted-foreground hover:text-destructive"><Trash2 className="w-3.5 h-3.5" /></button>
+                        </div>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
