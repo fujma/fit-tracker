@@ -176,7 +176,7 @@ export default function CardioPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">有酸素運動記録</h1>
+        <h1 className="text-xl font-bold">有酸素運動記録</h1>
         <Button onClick={() => setShowForm(!showForm)} size="sm">
           <Plus className="w-4 h-4 mr-1" />
           追加

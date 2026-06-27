@@ -45,14 +45,14 @@ export default function ProgressPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <h1 className="text-2xl font-bold">進捗グラフ</h1>
-        <div className="flex flex-wrap gap-2">
+      <div className="space-y-2">
+        <h1 className="text-xl font-bold">進捗グラフ</h1>
+        <div className="flex gap-1">
           {PERIODS.map((p) => (
             <button
               key={p.value}
               onClick={() => setDays(p.value)}
-              className={`px-3 py-1 rounded text-sm font-medium transition-colors ${
+              className={`flex-1 py-1.5 rounded text-xs font-medium transition-colors ${
                 days === p.value
                   ? "bg-primary text-primary-foreground"
                   : "bg-secondary text-secondary-foreground hover:bg-accent"

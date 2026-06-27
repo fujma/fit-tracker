@@ -42,14 +42,14 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between gap-2">
+      <div className="space-y-2">
         <h1 className="text-xl font-bold">ダッシュボード</h1>
         <div className="flex gap-1">
           {PERIODS.map((p) => (
             <button
               key={p.value}
               onClick={() => setDays(p.value)}
-              className={`px-2 py-1 rounded text-xs font-medium transition-colors ${
+              className={`flex-1 py-1.5 rounded text-xs font-medium transition-colors ${
                 days === p.value
                   ? "bg-primary text-primary-foreground"
                   : "bg-secondary text-secondary-foreground hover:bg-accent"

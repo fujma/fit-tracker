@@ -259,16 +259,14 @@ export default function WorkoutsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">筋トレ記録</h1>
-        <div className="flex items-center gap-2">
-          <Input
-            type="date"
-            value={date}
-            onChange={(e) => { setDate(e.target.value); setSavedIds(new Set()); }}
-            className="w-40 h-9"
-          />
-        </div>
+      <div className="space-y-2">
+        <h1 className="text-xl font-bold">筋トレ記録</h1>
+        <Input
+          type="date"
+          value={date}
+          onChange={(e) => { setDate(e.target.value); setSavedIds(new Set()); }}
+          className="w-full sm:w-44 h-9"
+        />
       </div>
 
       {msg && (
