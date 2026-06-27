@@ -8,7 +8,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { WorkoutChart } from "@/components/charts/WorkoutChart";
 import { format } from "date-fns";
-import { Plus, Trash2, Save, ChevronDown, ChevronUp, Dumbbell, Pencil, X, Check } from "lucide-react";
+import { Plus, Trash2, Save, ChevronDown, ChevronUp, Dumbbell, Pencil, X, Check, Settings } from "lucide-react";
+
+const MACHINE_NUMBERS_KEY = "fittracker_machine_numbers";
 
 interface Workout {
   id: number;
@@ -40,18 +42,25 @@ function ExerciseCard({
   onRemove,
   onSave,
   saved,
+  machineNo,
 }: {
   entry: QuickEntry;
   onChange: (e: QuickEntry) => void;
   onRemove: () => void;
   onSave: () => void;
   saved: boolean;
+  machineNo?: number;
 }) {
   return (
     <div className={`rounded-lg border p-4 space-y-3 transition-colors ${saved ? "border-green-500/60 bg-green-500/5" : "border-border bg-card"}`}>
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2 min-w-0">
           <Dumbbell className="w-4 h-4 text-primary shrink-0" />
+          {machineNo != null && (
+            <span className="text-xs font-bold text-muted-foreground bg-secondary rounded px-1.5 py-0.5 shrink-0">
+              No.{machineNo}
+            </span>
+          )}
           <span className="font-semibold text-sm truncate">{entry.exercise_name}</span>
         </div>
         <div className="flex items-center gap-1 shrink-0">
@@ -115,6 +124,11 @@ export default function WorkoutsPage() {
   const [submitting, setSubmitting] = useState<number | null>(null);
   const [msg, setMsg] = useState("");
 
+  // マシン番号管理
+  const [machineNumbers, setMachineNumbers] = useState<Record<string, number>>({});
+  const [showMachineSettings, setShowMachineSettings] = useState(false);
+  const [editingNumbers, setEditingNumbers] = useState<Record<string, string>>({});
+
   // 一覧・グラフ
   const [workouts, setWorkouts] = useState<Workout[]>([]);
   const [loading, setLoading] = useState(true);
@@ -136,6 +150,31 @@ export default function WorkoutsPage() {
   }, []);
 
   useEffect(() => { load(); }, []);
+
+  // マシン番号をlocalStorageから読み込む
+  useEffect(() => {
+    const saved = localStorage.getItem(MACHINE_NUMBERS_KEY);
+    if (saved) setMachineNumbers(JSON.parse(saved));
+  }, []);
+
+  function saveMachineNumbers() {
+    const result: Record<string, number> = {};
+    Object.entries(editingNumbers).forEach(([name, val]) => {
+      const n = parseInt(val);
+      if (!isNaN(n)) result[name] = n;
+    });
+    setMachineNumbers(result);
+    localStorage.setItem(MACHINE_NUMBERS_KEY, JSON.stringify(result));
+    setShowMachineSettings(false);
+  }
+
+  function openMachineSettings() {
+    const allNames = Array.from(new Set([...DEFAULT_EXERCISES, ...exerciseNames]));
+    const init: Record<string, string> = {};
+    allNames.forEach(n => { init[n] = machineNumbers[n] != null ? String(machineNumbers[n]) : ""; });
+    setEditingNumbers(init);
+    setShowMachineSettings(true);
+  }
 
   useEffect(() => {
     if (!chartExercise) return;
@@ -210,7 +249,13 @@ export default function WorkoutsPage() {
     }
   }
 
-  const unusedPresets = DEFAULT_EXERCISES.filter((n) => !quickEntries.some((e) => e.exercise_name === n));
+  const unusedPresets = DEFAULT_EXERCISES
+    .filter((n) => !quickEntries.some((e) => e.exercise_name === n))
+    .sort((a, b) => {
+      const na = machineNumbers[a] ?? 9999;
+      const nb = machineNumbers[b] ?? 9999;
+      return na - nb;
+    });
 
   return (
     <div className="space-y-6">
@@ -246,6 +291,7 @@ export default function WorkoutsPage() {
               onRemove={() => setQuickEntries((prev) => prev.filter((_, i) => i !== idx))}
               onSave={() => saveEntry(idx)}
               saved={savedIds.has(idx)}
+              machineNo={machineNumbers[entry.exercise_name]}
             />
           ))}
         </div>
@@ -258,13 +304,16 @@ export default function WorkoutsPage() {
             <p className="text-sm text-muted-foreground text-center pb-1">種目を追加して記録を始めましょう</p>
           )}
           {/* プリセットから選択 */}
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-2 items-center">
             {unusedPresets.slice(0, 8).map((name) => (
               <button
                 key={name}
                 onClick={() => addExercise(name)}
-                className="px-3 py-1.5 text-xs rounded-full border border-border hover:border-primary hover:text-primary transition-colors"
+                className="px-3 py-1.5 text-xs rounded-full border border-border hover:border-primary hover:text-primary transition-colors flex items-center gap-1"
               >
+                {machineNumbers[name] != null && (
+                  <span className="text-muted-foreground font-bold">{machineNumbers[name]}.</span>
+                )}
                 + {name}
               </button>
             ))}
@@ -276,7 +325,44 @@ export default function WorkoutsPage() {
                 もっと見る
               </button>
             )}
+            <button
+              onClick={openMachineSettings}
+              className="ml-auto p-1.5 rounded-full border border-border hover:border-primary text-muted-foreground hover:text-primary transition-colors"
+              title="マシン番号を設定"
+            >
+              <Settings className="w-3.5 h-3.5" />
+            </button>
           </div>
+
+          {/* マシン番号設定パネル */}
+          {showMachineSettings && (
+            <div className="rounded-lg border border-border bg-secondary/30 p-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <p className="text-sm font-medium">マシン番号を設定</p>
+                <button onClick={() => setShowMachineSettings(false)} className="text-muted-foreground hover:text-foreground">
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+              <p className="text-xs text-muted-foreground">ジムのマシン番号を入力してください。番号順に並び替えられます。</p>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                {Array.from(new Set([...DEFAULT_EXERCISES, ...exerciseNames])).map(name => (
+                  <div key={name} className="flex items-center gap-2">
+                    <input
+                      type="number"
+                      value={editingNumbers[name] ?? ""}
+                      onChange={e => setEditingNumbers(prev => ({ ...prev, [name]: e.target.value }))}
+                      placeholder="番号"
+                      className="w-14 rounded border border-border bg-background px-2 py-1 text-xs text-center"
+                    />
+                    <span className="text-xs truncate">{name}</span>
+                  </div>
+                ))}
+              </div>
+              <Button size="sm" onClick={saveMachineNumbers} className="w-full">
+                <Check className="w-3.5 h-3.5 mr-1" /> 保存
+              </Button>
+            </div>
+          )}
 
           {/* カスタム種目入力 */}
           <div className="flex gap-2">
