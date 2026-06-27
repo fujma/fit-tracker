@@ -20,9 +20,9 @@ export function Sidebar() {
 
   return (
     <>
-      {/* Mobile header */}
-      <header className="lg:hidden flex items-center justify-between px-4 h-14 border-b bg-card sticky top-0 z-50">
-        <span className="font-bold text-lg text-primary">FitTracker</span>
+      {/* Mobile header - fixed so it doesn't participate in flex layout */}
+      <header className="lg:hidden fixed top-0 left-0 right-0 flex items-center justify-between px-4 h-14 border-b bg-card z-50">
+        <span className="font-bold text-lg text-primary">💪 FitTracker</span>
         <button onClick={() => setOpen(!open)} className="p-2 rounded-md hover:bg-accent">
           {open ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
         </button>
