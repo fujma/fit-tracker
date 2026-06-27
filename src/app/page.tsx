@@ -41,15 +41,15 @@ export default function DashboardPage() {
     : null;
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <h1 className="text-2xl font-bold">ダッシュボード</h1>
-        <div className="flex gap-2">
+    <div className="space-y-4">
+      <div className="flex items-center justify-between gap-2">
+        <h1 className="text-xl font-bold">ダッシュボード</h1>
+        <div className="flex gap-1">
           {PERIODS.map((p) => (
             <button
               key={p.value}
               onClick={() => setDays(p.value)}
-              className={`px-3 py-1 rounded text-sm font-medium transition-colors ${
+              className={`px-2 py-1 rounded text-xs font-medium transition-colors ${
                 days === p.value
                   ? "bg-primary text-primary-foreground"
                   : "bg-secondary text-secondary-foreground hover:bg-accent"
@@ -61,52 +61,24 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-3">
-              <Scale className="w-8 h-8 text-green-400" />
-              <div>
-                <p className="text-xs text-muted-foreground">最新体重</p>
-                <p className="text-2xl font-bold">{latestWeight != null ? `${latestWeight}kg` : "---"}</p>
+      {/* Stats - スマホ対応 */}
+      <div className="grid grid-cols-2 gap-3">
+        {[
+          { icon: <Scale className="w-5 h-5 text-green-400" />, label: "最新体重", value: latestWeight != null ? `${latestWeight}kg` : "---" },
+          { icon: <Activity className="w-5 h-5 text-blue-400" />, label: "最新体脂肪率", value: latestBodyFat != null ? `${latestBodyFat}%` : "---" },
+          { icon: <Dumbbell className="w-5 h-5 text-purple-400" />, label: "平均歩数", value: avgSteps != null ? avgSteps.toLocaleString() : "---" },
+          { icon: <Moon className="w-5 h-5 text-pink-400" />, label: "平均睡眠", value: avgSleep != null ? `${avgSleep}h` : "---" },
+        ].map((stat) => (
+          <Card key={stat.label}>
+            <CardContent className="p-3">
+              <div className="flex items-center gap-2 mb-1">
+                {stat.icon}
+                <p className="text-xs text-muted-foreground">{stat.label}</p>
               </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-3">
-              <Activity className="w-8 h-8 text-blue-400" />
-              <div>
-                <p className="text-xs text-muted-foreground">最新体脂肪率</p>
-                <p className="text-2xl font-bold">{latestBodyFat != null ? `${latestBodyFat}%` : "---"}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-3">
-              <Dumbbell className="w-8 h-8 text-purple-400" />
-              <div>
-                <p className="text-xs text-muted-foreground">平均歩数</p>
-                <p className="text-2xl font-bold">{avgSteps != null ? avgSteps.toLocaleString() : "---"}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-3">
-              <Moon className="w-8 h-8 text-pink-400" />
-              <div>
-                <p className="text-xs text-muted-foreground">平均睡眠</p>
-                <p className="text-2xl font-bold">{avgSleep != null ? `${avgSleep}h` : "---"}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+              <p className="text-xl font-bold">{stat.value}</p>
+            </CardContent>
+          </Card>
+        ))}
       </div>
 
       {loading ? (
