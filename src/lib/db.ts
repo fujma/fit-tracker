@@ -54,4 +54,12 @@ export async function initSchema() {
       created_at TEXT DEFAULT (datetime('now'))
     );
   `);
+  // 既存テーブルに新カラムを追加（エラーは無視）
+  const alters = [
+    'ALTER TABLE cardio ADD COLUMN speed_kmh REAL',
+    'ALTER TABLE cardio ADD COLUMN incline_pct REAL',
+  ];
+  for (const sql of alters) {
+    try { await db.execute(sql); } catch {}
+  }
 }
