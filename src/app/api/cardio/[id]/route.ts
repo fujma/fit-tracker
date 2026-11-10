@@ -6,10 +6,10 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
     await initSchema();
     const db = getDb();
     const body = await req.json();
-    const { date, type, duration_min, distance_km, calories, speed_kmh, incline_pct, notes } = body;
+    const { date, type, duration_min, distance_km, calories, speed_kmh, incline_pct, notes, segments } = body;
     await db.execute({
-      sql: 'UPDATE cardio SET date=?, type=?, duration_min=?, distance_km=?, calories=?, speed_kmh=?, incline_pct=?, notes=? WHERE id=?',
-      args: [date, type, duration_min ?? null, distance_km ?? null, calories ?? null, speed_kmh ?? null, incline_pct ?? null, notes ?? null, Number(params.id)],
+      sql: 'UPDATE cardio SET date=?, type=?, duration_min=?, distance_km=?, calories=?, speed_kmh=?, incline_pct=?, notes=?, segments=? WHERE id=?',
+      args: [date, type, duration_min ?? null, distance_km ?? null, calories ?? null, speed_kmh ?? null, incline_pct ?? null, notes ?? null, segments ?? null, Number(params.id)],
     });
     const row = await db.execute({ sql: 'SELECT * FROM cardio WHERE id=?', args: [Number(params.id)] });
     return NextResponse.json(row.rows[0]);

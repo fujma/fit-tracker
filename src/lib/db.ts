@@ -58,6 +58,7 @@ export async function initSchema() {
   const alters = [
     'ALTER TABLE cardio ADD COLUMN speed_kmh REAL',
     'ALTER TABLE cardio ADD COLUMN incline_pct REAL',
+    'ALTER TABLE cardio ADD COLUMN segments TEXT',
   ];
   for (const sql of alters) {
     try { await db.execute(sql); } catch {}

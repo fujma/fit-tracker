@@ -29,15 +29,15 @@ export async function POST(req: NextRequest) {
     await initSchema();
     const db = getDb();
     const body = await req.json();
-    const { date, type, duration_min, distance_km, calories, speed_kmh, incline_pct, notes } = body;
+    const { date, type, duration_min, distance_km, calories, speed_kmh, incline_pct, notes, segments } = body;
 
     if (!date || !type) {
       return NextResponse.json({ error: '日付と種目は必須です' }, { status: 400 });
     }
 
     const result = await db.execute({
-      sql: 'INSERT INTO cardio (date, type, duration_min, distance_km, calories, speed_kmh, incline_pct, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-      args: [date, type, duration_min ?? null, distance_km ?? null, calories ?? null, speed_kmh ?? null, incline_pct ?? null, notes ?? null],
+      sql: 'INSERT INTO cardio (date, type, duration_min, distance_km, calories, speed_kmh, incline_pct, notes, segments) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      args: [date, type, duration_min ?? null, distance_km ?? null, calories ?? null, speed_kmh ?? null, incline_pct ?? null, notes ?? null, segments ?? null],
     });
 
     const row = await db.execute({

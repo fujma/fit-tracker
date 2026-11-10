@@ -20,6 +20,26 @@ interface Cardio {
   speed_kmh: number | null;
   incline_pct: number | null;
   notes: string | null;
+  segments: string | null;
+}
+
+interface Segment {
+  speed: string;
+  min: string;
+}
+
+function parseSegments(json: string | null): { speed: number; min: number }[] {
+  if (!json) return [];
+  try {
+    const arr = JSON.parse(json);
+    return Array.isArray(arr) ? arr : [];
+  } catch {
+    return [];
+  }
+}
+
+function segmentsLabel(json: string | null): string {
+  return parseSegments(json).map((s) => `${s.speed}km/h×${s.min}分`).join(" → ");
 }
 
 const CARDIO_TYPES = ["ランニング", "ウォーキング", "自転車", "水泳", "エリプティカル", "縄跳び", "その他"];
@@ -38,6 +58,31 @@ function calcDistanceAndCalories(
   const cal_per_min = vo2 * weight_kg * 5 / 1000;
   const calories = Math.round(cal_per_min * duration_min);
   return { distance_km, calories };
+}
+
+// 区間ごとの距離・カロリーを合計する（丸めは最後に1回だけ）
+function calcSegments(segs: Segment[], incline_pct: number, weight_kg: number) {
+  const valid = segs
+    .map((s) => ({ speed: parseFloat(s.speed), min: parseFloat(s.min) }))
+    .filter((s) => s.speed > 0 && s.min > 0);
+  if (valid.length === 0) return null;
+  let dist = 0;
+  let cal = 0;
+  let total = 0;
+  for (const s of valid) {
+    const speed_m_min = s.speed * 1000 / 60;
+    const vo2 = 0.1 * speed_m_min + 1.8 * speed_m_min * (incline_pct / 100) + 3.5;
+    cal += vo2 * weight_kg * 5 / 1000 * s.min;
+    dist += s.speed * s.min / 60;
+    total += s.min;
+  }
+  return {
+    valid,
+    duration_min: total,
+    distance_km: parseFloat(dist.toFixed(2)),
+    calories: Math.round(cal),
+    avg_speed: parseFloat((dist / (total / 60)).toFixed(2)),
+  };
 }
 
 export default function CardioPage() {
@@ -61,6 +106,35 @@ export default function CardioPage() {
     calories: "",
     notes: "",
   });
+  const [segments, setSegments] = useState<Segment[]>([]);
+
+  function applySegments(segs: Segment[], f: typeof form, weight: string) {
+    const r = calcSegments(segs, parseFloat(f.incline_pct) || 0, parseFloat(weight) || 70);
+    if (!r) return { ...f, duration_min: "", speed_kmh: "", distance_km: "", calories: "" };
+    return {
+      ...f,
+      duration_min: String(r.duration_min),
+      speed_kmh: String(r.avg_speed),
+      distance_km: String(r.distance_km),
+      calories: String(r.calories),
+    };
+  }
+
+  function updateSegments(segs: Segment[]) {
+    setSegments(segs);
+    if (segs.length === 0) {
+      setForm(autoCalc({ ...form }));
+    } else {
+      setForm(applySegments(segs, form, userWeight));
+    }
+  }
+
+  function startSegments() {
+    updateSegments([
+      { speed: form.speed_kmh, min: form.duration_min },
+      { speed: "", min: "" },
+    ]);
+  }
 
   // 体重をlocalStorageから読み込む
   useEffect(() => {
@@ -72,6 +146,10 @@ export default function CardioPage() {
     setUserWeight(v);
     localStorage.setItem(WEIGHT_KEY, v);
     // 体重変更時も再計算
+    if (segments.length > 0) {
+      setForm(applySegments(segments, form, v));
+      return;
+    }
     const updated = { ...form };
     const dur = parseFloat(updated.duration_min);
     const spd = parseFloat(updated.speed_kmh);
@@ -99,7 +177,9 @@ export default function CardioPage() {
   function setField(field: keyof typeof form, value: string) {
     const updated = { ...form, [field]: value };
     const recalcFields = ["duration_min", "speed_kmh", "incline_pct"];
-    if (recalcFields.includes(field)) {
+    if (segments.length > 0 && field === "incline_pct") {
+      setForm(applySegments(segments, updated, userWeight));
+    } else if (segments.length === 0 && recalcFields.includes(field)) {
       setForm(autoCalc(updated));
     } else {
       setForm(updated);
@@ -109,7 +189,7 @@ export default function CardioPage() {
   async function load() {
     setLoading(true);
     const data = await fetch("/api/cardio").then((r) => r.json());
-    setRecords(data);
+    setRecords(Array.isArray(data) ? data : []);
     setLoading(false);
   }
 
@@ -119,6 +199,9 @@ export default function CardioPage() {
     e.preventDefault();
     setSubmitting(true);
     setMsg("");
+    const segResult = segments.length > 0
+      ? calcSegments(segments, parseFloat(form.incline_pct) || 0, parseFloat(userWeight) || 70)
+      : null;
     const res = await fetch("/api/cardio", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -131,11 +214,13 @@ export default function CardioPage() {
         speed_kmh: form.speed_kmh ? parseFloat(form.speed_kmh) : null,
         incline_pct: form.incline_pct ? parseFloat(form.incline_pct) : null,
         notes: form.notes || null,
+        segments: segResult ? JSON.stringify(segResult.valid) : null,
       }),
     });
     if (res.ok) {
       setMsg("記録しました！");
       setForm({ date: today, type: "ランニング", duration_min: "", speed_kmh: "", incline_pct: "0", distance_km: "", calories: "", notes: "" });
+      setSegments([]);
       setShowForm(false);
       load();
     } else {
@@ -206,7 +291,16 @@ export default function CardioPage() {
                 </div>
                 <div className="space-y-1">
                   <Label>時間 (分)</Label>
-                  <Input type="number" step="0.5" value={form.duration_min} onChange={(e) => setField("duration_min", e.target.value)} placeholder="30" />
+                  <Input
+                    type="number"
+                    step="0.5"
+                    value={form.duration_min}
+                    onChange={(e) => setField("duration_min", e.target.value)}
+                    placeholder="30"
+                    readOnly={segments.length > 0}
+                    className={segments.length > 0 ? "opacity-70" : undefined}
+                  />
+                  {segments.length > 0 && <p className="text-xs text-primary">区間の合計</p>}
                 </div>
               </div>
 
@@ -217,13 +311,18 @@ export default function CardioPage() {
                 </p>
                 <div className="grid grid-cols-3 gap-4">
                   <div className="space-y-1">
-                    <Label>スピード (km/h)</Label>
+                    <Label>
+                      スピード (km/h)
+                      {segments.length > 0 && <span className="ml-1 text-xs text-primary">平均</span>}
+                    </Label>
                     <Input
                       type="number"
                       step="0.1"
                       value={form.speed_kmh}
                       onChange={(e) => setField("speed_kmh", e.target.value)}
                       placeholder="例: 8.0"
+                      readOnly={segments.length > 0}
+                      className={segments.length > 0 ? "opacity-70" : undefined}
                     />
                   </div>
                   <div className="space-y-1">
@@ -247,6 +346,55 @@ export default function CardioPage() {
                     />
                   </div>
                 </div>
+
+                {/* 区間（途中で速度を変えたとき） */}
+                {segments.length === 0 ? (
+                  <Button type="button" variant="outline" size="sm" onClick={startSegments}>
+                    <Plus className="w-4 h-4 mr-1" />
+                    区間を追加（途中で速度を変えたとき）
+                  </Button>
+                ) : (
+                  <div className="space-y-2">
+                    <p className="text-xs text-muted-foreground">区間ごとの速度と時間（傾斜は上の値を使います）</p>
+                    {segments.map((s, i) => (
+                      <div key={i} className="flex items-end gap-2">
+                        <span className="pb-2 text-xs text-muted-foreground w-10 shrink-0">区間{i + 1}</span>
+                        <div className="space-y-1 flex-1">
+                          {i === 0 && <Label className="text-xs">速度 (km/h)</Label>}
+                          <Input
+                            type="number"
+                            step="0.1"
+                            value={s.speed}
+                            onChange={(e) => updateSegments(segments.map((x, j) => (j === i ? { ...x, speed: e.target.value } : x)))}
+                            placeholder="例: 7"
+                          />
+                        </div>
+                        <div className="space-y-1 flex-1">
+                          {i === 0 && <Label className="text-xs">時間 (分)</Label>}
+                          <Input
+                            type="number"
+                            step="0.5"
+                            value={s.min}
+                            onChange={(e) => updateSegments(segments.map((x, j) => (j === i ? { ...x, min: e.target.value } : x)))}
+                            placeholder="例: 20"
+                          />
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => updateSegments(segments.filter((_, j) => j !== i))}
+                          className="pb-2.5 text-muted-foreground hover:text-destructive"
+                          aria-label={`区間${i + 1}を削除`}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    ))}
+                    <Button type="button" variant="outline" size="sm" onClick={() => updateSegments([...segments, { speed: "", min: "" }])}>
+                      <Plus className="w-4 h-4 mr-1" />
+                      区間を追加
+                    </Button>
+                  </div>
+                )}
               </div>
 
               {/* 距離・カロリー（自動計算または手動） */}
@@ -289,7 +437,7 @@ export default function CardioPage() {
 
               <div className="flex gap-2">
                 <Button type="submit" disabled={submitting}>{submitting ? "保存中..." : "保存"}</Button>
-                <Button type="button" variant="outline" onClick={() => setShowForm(false)}>キャンセル</Button>
+                <Button type="button" variant="outline" onClick={() => { setShowForm(false); setSegments([]); }}>キャンセル</Button>
               </div>
             </form>
           </CardContent>
@@ -355,7 +503,12 @@ export default function CardioPage() {
                   ) : (
                     <tr key={r.id} className="border-b border-border/50 hover:bg-accent/50">
                       <td className="py-2 pr-3 whitespace-nowrap text-xs text-muted-foreground">{r.date}</td>
-                      <td className="py-2 pr-3 font-medium">{r.type}</td>
+                      <td className="py-2 pr-3 font-medium">
+                        {r.type}
+                        {r.segments && (
+                          <div className="text-xs font-normal text-muted-foreground whitespace-nowrap">{segmentsLabel(r.segments)}</div>
+                        )}
+                      </td>
                       <td className="py-2 pr-3 text-right">{r.duration_min != null ? `${r.duration_min}分` : "-"}</td>
                       <td className="py-2 pr-3 text-right">{r.speed_kmh != null ? `${r.speed_kmh}km/h` : "-"}</td>
                       <td className="py-2 pr-3 text-right">{r.incline_pct != null ? `${r.incline_pct}%` : "-"}</td>
